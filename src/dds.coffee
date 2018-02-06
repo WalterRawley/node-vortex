@@ -37,7 +37,7 @@ Defines the core Vortex-Web-Client javascript library. It includes the JavaScrip
 #    exports = module.exports = dds
 #  exports.dds = dds
 
-dds.VERSION = "1.2.4"
+dds.VERSION = "1.2.6"
 
 ########################################################################################################################
 ##   QoS Policies and Entities QoS
@@ -474,7 +474,7 @@ class DataReader
     @function close
   ###
   close: () =>
-    console.log("Closing DR #{this}")
+    console.log("Closing DR #{@eid}")
     @closed = true
     @runtime.closeDataReader(this)
     @onclose()
@@ -537,11 +537,12 @@ class DataWriter
     @sentSamples = 0
 
   ###*
-    Closes the DataWriter.
+    Closes the DataWriter. Triggers the onclose callback, but not the ondisconnect callback.
     @memberof! dds.DataWriter#
     @function close
   ###
   close: () ->
+    console.log("Closing DW " + @eid)
     @closed = true
     @socket = new z_.Fail("Invalid State Exception: Can't write on a closed DataWriter")
     @runtime.closeDataWriter(this)
@@ -570,9 +571,11 @@ dds.DataWriter = DataWriter
   @memberof dds
 ###
 class DataCache
+  listenerCount = 0
+  
   constructor: (@depth, @cache) ->
     if (@cache? == false) then @cache = {}
-    @listeners = []
+    @listeners = {}
 
   ###*
     Register a listener to be notified whenever data which matches a predicate is written into the cache.
@@ -588,7 +591,19 @@ class DataCache
     entry =
       predicate: p
       listener: l
-    @listeners = @listeners.concat(entry)
+    id = "datacacheListener#{listenerCount}"
+    listenerCount++
+    @listeners[id] = entry
+    id
+    
+  ###*
+    Removes a listener from this data cache
+    @memberof! dds.DataCache#
+    @function addListener
+    @param {string} id - listener id
+  ###
+  removeListener: (id) ->
+    delete @listeners[id]
 
   ###*
     Write the element `data` with key `k` into the cache.
@@ -602,8 +617,12 @@ class DataCache
     v = @cache[k]
     if (v? == false) then v = [data] else v = if (v.length < @depth) then v.concat(data) else v.slice(1, v.lenght).concat(data)
     @cache[k] = v
-
-    @listeners.forEach((e) -> if (e.predicate(data) is true) then e.listener(data))
+    
+    _results = []
+    for id of @listeners
+      if @listeners[id].predicate(data) is on then _results.push @listeners[id].listener(data) else _results.push undefined
+    _results
+    #@listeners.forEach((e) -> if (e.predicate(data) is true) then e.listener(data))
 
   ###*
     Same as forEach but applied, for each key, only to the first `n` samples of the cache
@@ -744,7 +763,6 @@ class DataCache
     v = @cache[k]
     if (v == undefined) then z_.None else new z_.Some(v)
 
-
   ###*
    Return `coffez.Some(v)` if there is an element in the cache corresponding to the
    key `k` otherwise executes `f` and returns its result.
@@ -800,7 +818,6 @@ dds.bind = (key) -> (reader, cache) ->
       cache.write(key(d), d)
   )
 
-
 ###*
 Similar to the 'bind' function, but applies a given 'once' function on the cache before
 being fed by the received data.
@@ -822,7 +839,6 @@ dds.bindWithOnce = (key) -> (reader, cache, once) ->
     else
       cache.write(key(d), d)
   )
-
 
 dds.DataCache = DataCache
 

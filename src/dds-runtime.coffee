@@ -160,10 +160,14 @@ class Runtime
   closeDataReader: (dr) ->
     console.log("[dds-runtime]: Cleaning up DR with eid = #{dr.eid}")
     delete @drmap[dr.eid]
+    cmd = drt.CloseDataReader(dr.eid)
+    @sendWorker.postMessage(cmd)
 
   closeDataWriter: (dw) ->
     console.log("[dds-runtime]: Cleaning up DW with eid = #{dw.eid}")
     delete @dwmap[dw.eid]
+    cmd = drt.CloseDataWriter(dr.eid)
+    @sendWorker.postMessage(cmd)
 
 ## -------------------------------------------------------------------------------------------
   writeData: (dw, s) =>

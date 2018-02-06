@@ -76,9 +76,17 @@ class ReadLinkWorker
       when z_.match(cmd.h, drt.Connect)
         connect()
 
-      when z_.match(cmd.h, drt.Disconnect)
-        disconnect(this)
+      when z_.match(cmd.h, drt.CloseDataReaderCmd)
+        socket = socketMap[cmd.eid];
+        if (socket)
+          console.log("[reader-link] Closing Websocket for DR : " + cmd.eid + ", at " + socket.url);
+          socket.close();
+        else
+          console.log("[reader-link] Cannot close DR : " + cmd.eid + ", socket does not exist");
 
+       when z_.match(cmd.h, drt.Disconnect)
+        disconnect(this)
+     
       else
         console.log("[reader-link] Reader Worker Received Unknown Command!")
 
